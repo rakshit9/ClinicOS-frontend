@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -34,11 +35,12 @@ import { Progress } from './ui/progress';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface AILandingPageProps {
-  onTryDemo: () => void;
+  onTryDemo?: () => void;
   onSignIn?: () => void;
 }
 
 export function AILandingPage({ onTryDemo, onSignIn }: AILandingPageProps) {
+  const navigate = useNavigate();
   const [activeScreenshot, setActiveScreenshot] = useState(0);
   const [openAccordion, setOpenAccordion] = useState<string | undefined>();
   const [aiDemoState, setAiDemoState] = useState<'idle' | 'processing' | 'complete'>('idle');
@@ -335,8 +337,31 @@ export function AILandingPage({ onTryDemo, onSignIn }: AILandingPageProps) {
             onClick={resetAndScrollToTop}
             className="flex items-center gap-2 sm:gap-4 hover:opacity-80 transition-opacity group"
           >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-3xl flex items-center justify-center shadow-lg shadow-primary/20">
-              <span className="text-primary-foreground text-sm sm:text-lg">CP</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-3xl flex items-center justify-center shadow-lg shadow-primary/20 relative overflow-hidden">
+              {/* Pulse + Arrow fusion logo - modern medical navigation symbol */}
+              <div className="relative w-4 h-4 sm:w-5 sm:h-5">
+                {/* Heartbeat pulse line that transforms into arrow */}
+                <svg viewBox="0 0 20 20" className="w-full h-full">
+                  {/* Pulse line */}
+                  <path 
+                    d="M2 10 L6 10 L7 6 L9 14 L11 10 L18 10" 
+                    stroke="white" 
+                    strokeWidth="1.5" 
+                    fill="none" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  />
+                  {/* Arrow head */}
+                  <path 
+                    d="M14 7 L18 10 L14 13" 
+                    stroke="white" 
+                    strokeWidth="1.5" 
+                    fill="none" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
             </div>
             <span className="text-text text-lg sm:text-xl">ClinicPilot</span>
           </button>
@@ -385,13 +410,13 @@ export function AILandingPage({ onTryDemo, onSignIn }: AILandingPageProps) {
           <div className="hidden lg:flex items-center gap-4">
             <Button 
               variant="ghost" 
-              onClick={onSignIn}
+              onClick={() => navigate('/auth')}
               className="border border-border rounded-3xl text-subtext hover:text-text px-6 py-3 text-sm"
             >
               Sign in
             </Button>
             <Button 
-              onClick={onTryDemo}
+              onClick={() => navigate('/dashboard')}
               className="bg-primary hover:bg-primary-hover text-primary-foreground rounded-3xl px-6 py-3 shadow-lg shadow-primary/20 text-sm"
             >
               Try Demo
@@ -401,7 +426,7 @@ export function AILandingPage({ onTryDemo, onSignIn }: AILandingPageProps) {
           {/* Mobile Actions */}
           <div className="flex lg:hidden items-center gap-2">
             <Button 
-              onClick={onTryDemo}
+              onClick={() => navigate('/dashboard')}
               className="bg-primary hover:bg-primary-hover text-primary-foreground rounded-2xl px-4 py-2 shadow-lg shadow-primary/20 text-sm"
             >
               Demo
@@ -464,14 +489,14 @@ export function AILandingPage({ onTryDemo, onSignIn }: AILandingPageProps) {
               {/* Mobile Actions */}
               <div className="pt-4 border-t border-border space-y-3">
                 <Button 
-                  onClick={() => { onSignIn(); setIsMobileMenuOpen(false); }}
+                  onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }}
                   variant="ghost"
                   className="w-full justify-center border border-border rounded-2xl text-subtext hover:text-text py-3 touch-target-48"
                 >
                   Sign in
                 </Button>
                 <Button 
-                  onClick={() => { onTryDemo(); setIsMobileMenuOpen(false); }}
+                  onClick={() => { navigate('/dashboard'); setIsMobileMenuOpen(false); }}
                   className="w-full justify-center bg-primary hover:bg-primary-hover text-primary-foreground rounded-2xl py-3 shadow-lg shadow-primary/20 touch-target-48"
                 >
                   Try Live Demo
@@ -524,7 +549,7 @@ export function AILandingPage({ onTryDemo, onSignIn }: AILandingPageProps) {
               <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6 justify-center lg:justify-start">
                 <Button 
                   size="lg"
-                  onClick={onTryDemo}
+                  onClick={() => navigate('/dashboard')}
                   className="bg-primary hover:bg-primary-hover text-primary-foreground rounded-3xl px-6 py-3 lg:px-8 lg:py-4 text-base lg:text-lg shadow-2xl shadow-primary/30 w-full sm:w-auto"
                 >
                   Try Live Demo
@@ -825,7 +850,7 @@ export function AILandingPage({ onTryDemo, onSignIn }: AILandingPageProps) {
                       {/* Action Row */}
                       <div className="flex items-center gap-4 pt-6">
                         <Button
-                          onClick={onTryDemo}
+                          onClick={() => navigate('/dashboard')}
                           className="bg-primary hover:bg-primary-hover text-primary-foreground rounded-3xl px-6 py-3 shadow-lg shadow-primary/20"
                         >
                           <ExternalLink className="w-4 h-4 mr-2" />
@@ -930,94 +955,193 @@ export function AILandingPage({ onTryDemo, onSignIn }: AILandingPageProps) {
       {/* Screens - 3D Rail */}
       <section id="screens" className="py-16 sm:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 bg-surface/30">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12 lg:mb-20">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl text-text mb-4 lg:mb-6">Explore the screens</h2>
-            <p className="text-lg sm:text-xl text-subtext">See every part of the ClinicPilot interface</p>
+          <div className="text-center mb-16 lg:mb-24">
+            <div className="inline-flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-primary/10 to-accent/10 rounded-full border border-primary/20 mb-6">
+              <Brain className="w-5 h-5 text-primary" />
+              <span className="text-primary">Interactive Demo</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-6xl text-text mb-6 lg:mb-8">
+              Experience the 
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"> future</span>
+            </h2>
+            <p className="text-lg sm:text-xl lg:text-2xl text-subtext max-w-3xl mx-auto leading-relaxed">
+              Navigate through every screen of ClinicPilot and see how AI transforms healthcare management
+            </p>
           </div>
 
           <div className="relative">
-            <div className="flex items-center gap-10 overflow-x-auto pb-8 scroll-smooth screens-scroll">
-              {screenshots.map((screenshot, index) => (
-                <div
-                  key={index}
-                  className={`relative flex-shrink-0 transition-all duration-700 cursor-pointer group ${
-                    index === activeScreenshot ? 'z-10' : 'z-0'
-                  }`}
-                  onClick={() => setActiveScreenshot(index)}
-                  style={{
-                    transform: `perspective(1200px) rotateY(${index === activeScreenshot ? '0deg' : '25deg'}) scale(${index === activeScreenshot ? 1.1 : 0.85})`,
-                    opacity: index === activeScreenshot ? 1 : 0.6
-                  }}
-                >
-                  {/* Glow effect for active card */}
-                  {index === activeScreenshot && (
-                    <div className="absolute inset-0 bg-gradient-radial from-primary/20 to-transparent rounded-3xl blur-2xl scale-110 -z-10" />
-                  )}
+            {/* Background decoration */}
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 rounded-3xl -z-10" />
+            
+            {/* Featured/Active screenshot - large display */}
+            <div className="mb-12 lg:mb-16">
+              <div className="relative mx-auto max-w-4xl">
+                {/* Ambient glow */}
+                <div className="absolute inset-0 bg-gradient-radial from-primary/20 via-primary/5 to-transparent rounded-3xl blur-3xl scale-110 -z-10" />
+                
+                {/* Main featured card */}
+                <div className="relative bg-surface/95 backdrop-blur-md border border-primary/20 rounded-3xl p-8 lg:p-12 shadow-2xl">
+                  {/* Floating badge */}
+                  <div className="absolute -top-4 left-8 bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-2 rounded-full border border-slate-700/50 shadow-lg">
+                    <span className="text-white text-sm">Featured Screen</span>
+                  </div>
                   
-                  <div className={`w-80 sm:w-96 bg-surface/95 backdrop-blur-md border transition-all duration-700 rounded-2xl lg:rounded-3xl p-6 lg:p-8 shadow-2xl group-hover:shadow-3xl ${
-                    index === activeScreenshot 
-                      ? 'border-primary/30 shadow-primary/10' 
-                      : 'border-border hover:border-primary/20'
-                  }`}>
-                    {/* Screen mockup with enhanced depth */}
-                    <div className="relative bg-gradient-to-br from-canvas to-canvas/80 rounded-xl lg:rounded-2xl p-3 lg:p-5 aspect-video mb-4 lg:mb-6 overflow-hidden">
-                      {/* Screen bezel effect */}
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent rounded-xl lg:rounded-2xl pointer-events-none" />
-                      
-                      <ImageWithFallback 
-                        src={screenshot.image}
-                        alt={screenshot.title}
-                        className="w-full h-full object-cover rounded-lg lg:rounded-xl shadow-lg relative z-10"
-                      />
-                      
-                      {/* Screen reflection */}
-                      <div className="absolute inset-2 bg-gradient-to-tr from-white/10 to-transparent rounded-lg lg:rounded-xl pointer-events-none" />
+                  {/* Screen mockup with laptop frame */}
+                  <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-2 mb-8">
+                    {/* Laptop frame details */}
+                    <div className="flex items-center gap-2 px-4 py-2">
+                      <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <div className="flex-1 flex justify-center">
+                        <div className="bg-slate-700 px-4 py-1 rounded-md text-slate-300 text-xs">
+                          clinicpilot.ai/dashboard
+                        </div>
+                      </div>
                     </div>
                     
-                    {/* Enhanced text section */}
-                    <div className="space-y-2 lg:space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-text text-lg lg:text-xl">{screenshot.title}</h3>
-                        {index === activeScreenshot && (
-                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                        )}
-                      </div>
-                      <p className="text-subtext leading-relaxed text-sm lg:text-base">{screenshot.description}</p>
+                    {/* Screen content */}
+                    <div className="bg-canvas rounded-xl overflow-hidden aspect-video relative">
+                      <ImageWithFallback 
+                        src={screenshots[activeScreenshot]?.image}
+                        alt={screenshots[activeScreenshot]?.title}
+                        className="w-full h-full object-cover"
+                      />
                       
-                      {/* Interactive indicator */}
-                      <div className={`w-full h-1 bg-gradient-to-r from-border to-transparent rounded-full transition-all duration-500 ${
-                        index === activeScreenshot ? 'from-primary/50 to-primary/10' : ''
-                      }`} />
+                      {/* Screen shine effect */}
+                      <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-white/5 pointer-events-none" />
                     </div>
                   </div>
                   
-                  {/* Hover enhancement */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                  {/* Feature details */}
+                  <div className="grid md:grid-cols-2 gap-8 items-center">
+                    <div>
+                      <h3 className="text-2xl lg:text-3xl text-text mb-4">{screenshots[activeScreenshot]?.title}</h3>
+                      <p className="text-lg text-subtext leading-relaxed mb-6">{screenshots[activeScreenshot]?.description}</p>
+                      
+                      {/* Feature highlights */}
+                      <div className="space-y-3">
+                        {['Real-time data updates', 'Intuitive user interface', 'AI-powered insights'].map((feature, idx) => (
+                          <div key={idx} className="flex items-center gap-3">
+                            <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                            <span className="text-subtext">{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Interactive element */}
+                    <div className="relative">
+                      <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl p-6 border border-primary/20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                            <Zap className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="text-text">Live Preview</h4>
+                            <p className="text-subtext text-sm">Click any screen below</p>
+                          </div>
+                        </div>
+                        
+                        {/* Progress indicator */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-subtext">Demo Progress</span>
+                            <span className="text-primary">{activeScreenshot + 1}/{screenshots.length}</span>
+                          </div>
+                          <div className="w-full bg-border rounded-full h-2">
+                            <div 
+                              className="bg-gradient-to-r from-primary to-accent h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${((activeScreenshot + 1) / screenshots.length) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ))}
+              </div>
+            </div>
+
+            {/* Screenshot thumbnails carousel */}
+            <div className="relative overflow-hidden">
+              <div className="flex items-center gap-6 pt-8 pb-6 scroll-smooth screens-scroll px-4 rounded-t-[40px] rounded-b-[12px]">
+                {screenshots.map((screenshot, index) => (
+                  <div
+                    key={index}
+                    className={`relative flex-shrink-0 transition-all duration-500 cursor-pointer group ${
+                      index === activeScreenshot ? 'scale-110' : 'scale-95 opacity-70'
+                    }`}
+                    onClick={() => setActiveScreenshot(index)}
+                  >
+                    {/* Thumbnail card */}
+                    <div className={`w-64 bg-surface/95 backdrop-blur-md border-2 rounded-2xl p-4 shadow-xl group-hover:shadow-2xl transition-all duration-300 ${
+                      index === activeScreenshot 
+                        ? 'border-primary/60 shadow-primary/30 bg-surface' 
+                        : 'border-border/80 hover:border-primary/50 hover:shadow-xl'
+                    }`}>
+                      {/* Thumbnail image */}
+                      <div className="relative bg-canvas rounded-xl overflow-hidden aspect-video mb-3">
+                        <ImageWithFallback 
+                          src={screenshot.image}
+                          alt={screenshot.title}
+                          className="w-full h-full object-cover"
+                        />
+                        
+                        {/* Play overlay for non-active items */}
+                        {index !== activeScreenshot && (
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                              <Play className="w-6 h-6 text-primary ml-0.5" />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Active indicator */}
+                        {index === activeScreenshot && (
+                          <div className="absolute top-3 right-3 w-3 h-3 bg-primary rounded-full shadow-lg animate-pulse" />
+                        )}
+                      </div>
+                      
+                      {/* Thumbnail info */}
+                      <div>
+                        <h4 className="text-text mb-1 truncate">{screenshot.title}</h4>
+                        <p className="text-subtext text-sm line-clamp-2">{screenshot.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Scroll indicators */}
+              <div className="absolute left-0 top-0 bottom-6 w-8 bg-gradient-to-r from-canvas to-transparent pointer-events-none" />
+              <div className="absolute right-0 top-0 bottom-6 w-8 bg-gradient-to-l from-canvas to-transparent pointer-events-none" />
             </div>
 
             {/* Enhanced Navigation */}
-            <div className="flex items-center justify-center gap-6 mt-16">
+            <div className="flex items-center justify-center gap-8 mt-12">
               <Button
                 variant="ghost"
-                size="sm"
+                size="lg"
                 onClick={() => setActiveScreenshot(Math.max(0, activeScreenshot - 1))}
                 disabled={activeScreenshot === 0}
-                className="rounded-2xl border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all duration-300 disabled:opacity-50"
+                className="rounded-2xl border border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 disabled:opacity-50 px-6"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5 mr-2" />
+                Previous
               </Button>
               
-              <div className="flex items-center gap-3 px-4 py-2 bg-surface/50 backdrop-blur-sm rounded-full border border-border/30">
+              <div className="flex items-center gap-2">
                 {screenshots.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => setActiveScreenshot(index)}
-                    className={`transition-all duration-300 rounded-full ${
+                    className={`transition-all duration-300 ${
                       index === activeScreenshot 
-                        ? 'w-8 h-3 bg-primary shadow-lg shadow-primary/30' 
-                        : 'w-3 h-3 bg-border hover:bg-primary/40'
+                        ? 'w-12 h-3 bg-gradient-to-r from-primary to-accent rounded-full shadow-lg' 
+                        : 'w-3 h-3 bg-border hover:bg-primary/40 rounded-full'
                     }`}
                   />
                 ))}
@@ -1025,12 +1149,13 @@ export function AILandingPage({ onTryDemo, onSignIn }: AILandingPageProps) {
 
               <Button
                 variant="ghost"
-                size="sm"
+                size="lg"
                 onClick={() => setActiveScreenshot(Math.min(screenshots.length - 1, activeScreenshot + 1))}
                 disabled={activeScreenshot === screenshots.length - 1}
-                className="rounded-2xl border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all duration-300 disabled:opacity-50"
+                className="rounded-2xl border border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 disabled:opacity-50 px-6"
               >
-                <ChevronRight className="w-5 h-5" />
+                Next
+                <ChevronRight className="w-5 h-5 ml-2" />
               </Button>
             </div>
           </div>

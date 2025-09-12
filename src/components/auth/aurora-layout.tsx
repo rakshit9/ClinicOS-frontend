@@ -1,4 +1,3 @@
-import React from 'react';
 import { Shield, Check, Zap, Users } from 'lucide-react';
 import { cn } from '../ui/utils';
 
@@ -34,8 +33,7 @@ export function AuroraLayout({ children, variant = 'signin' }: AuroraLayoutProps
       {/* Mobile Header */}
       <div className="md:hidden h-[300px] relative overflow-hidden">
         <div 
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(135deg, #5B6BFF 0%, #14B8A6 100%)' }}
+          className="absolute inset-0 bg-aurora-hero"
         />
         {/* Subtle mesh texture */}
         <div 
@@ -69,8 +67,7 @@ export function AuroraLayout({ children, variant = 'signin' }: AuroraLayoutProps
       {/* Desktop Left Panel - Aurora Hero */}
       <div className="hidden md:flex md:w-[48%] relative overflow-hidden">
         <div 
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(135deg, #5B6BFF 0%, #14B8A6 100%)' }}
+          className="absolute inset-0 bg-aurora-hero"
         />
         {/* Subtle mesh texture */}
         <div 

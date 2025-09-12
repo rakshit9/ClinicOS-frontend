@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '../ui/utils';
 
@@ -19,9 +19,9 @@ export const AuthButton = forwardRef<HTMLButtonElement, AuthButtonProps>(
           "focus:outline-none focus:ring-2 focus:ring-primary-hover focus:ring-offset-2",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           variant === 'primary' && [
-            "bg-gradient-to-r from-brand-warm to-primary text-primary-foreground",
-            "hover:from-[#FF7A10] hover:to-primary-hover",
-            "active:from-[#FF8A20] active:to-primary-press",
+            "bg-aurora-btn text-primary-foreground",
+            "hover:bg-primary-hover",
+            "active:bg-primary-press",
             "shadow-lg shadow-primary/25"
           ],
           variant === 'ghost' && [

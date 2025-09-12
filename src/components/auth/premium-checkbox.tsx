@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '../ui/utils';
 

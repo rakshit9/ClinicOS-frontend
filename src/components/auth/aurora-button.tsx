@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '../ui/utils';
 
@@ -24,7 +24,7 @@ export const AuroraButton = forwardRef<HTMLButtonElement, AuroraButtonProps>(
             "text-primary-fg font-medium",
             "shadow-lg shadow-primary/25",
             // Aurora gradient background
-            "bg-gradient-to-r from-[#6A66FF] to-[#2BD4B0]",
+            "bg-aurora-btn",
             "hover:shadow-xl hover:shadow-primary/30",
             "active:shadow-md active:shadow-primary/20"
           ],

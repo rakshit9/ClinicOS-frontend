@@ -3,7 +3,7 @@ import { Copy, QrCode, ExternalLink, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // MRN Generation
 export const generateMRN = (): string => {
@@ -21,7 +21,7 @@ export const isValidMRN = (mrn: string): boolean => {
 // MRN Copy Component
 interface MRNCopyProps {
   mrn: string;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
   showIcon?: boolean;
 }
 
@@ -43,7 +43,13 @@ export function MRNCopy({ mrn, size = 'md', showIcon = true }: MRNCopyProps) {
     }
   };
 
-  const iconSize = size === 'sm' ? 'w-3 h-3' : 'w-4 h-4';
+  const iconSize = (() => {
+    switch (size) {
+      case 'sm': return 'w-3 h-3';
+      case 'lg': return 'w-5 h-5';
+      default: return 'w-4 h-4';
+    }
+  })();
 
   return (
     <Button
@@ -67,7 +73,7 @@ export function MRNCopy({ mrn, size = 'md', showIcon = true }: MRNCopyProps) {
 // MRN Chip Component
 interface MRNChipProps {
   mrn: string;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
   showCopy?: boolean;
   onClick?: () => void;
 }
@@ -80,7 +86,13 @@ export function MRNChip({ mrn, size = 'md', showCopy = true, onClick }: MRNChipP
     }
   };
 
-  const chipSize = size === 'sm' ? 'text-xs px-2 py-1' : 'text-sm px-3 py-1';
+  const chipSize = (() => {
+    switch (size) {
+      case 'sm': return 'text-xs px-2 py-1';
+      case 'lg': return 'text-base px-4 py-2';
+      default: return 'text-sm px-3 py-1';
+    }
+  })();
 
   return (
     <div className="flex items-center gap-1">
@@ -100,7 +112,7 @@ export function MRNChip({ mrn, size = 'md', showCopy = true, onClick }: MRNChipP
 interface MRNActionsProps {
   mrn: string;
   patientId?: string;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
 }
 
 export function MRNActions({ mrn, patientId, size = 'md' }: MRNActionsProps) {
@@ -131,7 +143,13 @@ export function MRNActions({ mrn, patientId, size = 'md' }: MRNActionsProps) {
     toast.success('Patient link copied');
   };
 
-  const iconSize = size === 'sm' ? 'w-3 h-3' : 'w-4 h-4';
+  const iconSize = (() => {
+    switch (size) {
+      case 'sm': return 'w-3 h-3';
+      case 'lg': return 'w-5 h-5';
+      default: return 'w-4 h-4';
+    }
+  })();
 
   return (
     <>
@@ -158,15 +176,7 @@ export function MRNActions({ mrn, patientId, size = 'md' }: MRNActionsProps) {
         >
           <QrCode className={iconSize} />
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleLink}
-          className="h-auto p-1.5 text-subtext hover:text-text transition-colors"
-          title="Copy patient link"
-        >
-          <ExternalLink className={iconSize} />
-        </Button>
+     
       </div>
 
       {/* QR Code Modal */}

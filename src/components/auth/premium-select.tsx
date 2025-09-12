@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useEffect, useRef } from 'react';
+import { useState, forwardRef, useEffect, useRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../ui/utils';
 

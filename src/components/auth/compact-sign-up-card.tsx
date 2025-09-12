@@ -7,8 +7,9 @@ import { CompactSelect } from './compact-select';
 import { CompactCheckbox } from './compact-checkbox';
 import { PrimaryButton } from './primary-button';
 import { GoogleButton } from './google-button';
-import { toast } from 'sonner@2.0.3';
-import { AuthScreen } from './premium-sign-in';
+import { toast } from 'sonner';
+import { useAuth } from '../../contexts/AuthContext';
+import { AuthScreen } from '../premium-auth-flow';
 
 interface CompactSignUpCardProps {
   onSuccess: () => void;
@@ -42,6 +43,7 @@ const timezones = [
 ];
 
 export function CompactSignUpCard({ onSuccess, onNavigate }: CompactSignUpCardProps) {
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -98,12 +100,25 @@ export function CompactSignUpCard({ onSuccess, onNavigate }: CompactSignUpCardPr
 
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setIsLoading(false);
-    toast.success('Account created successfully!');
-    onSuccess();
+    try {
+      await register({
+        name: formData.fullName,
+        email: formData.email,
+        password: formData.password,
+        role: 'doctor',
+        speciality: formData.specialty || undefined,
+        timezone: formData.timezone || undefined,
+        clinic_name: formData.clinicName || undefined
+      });
+      
+      toast.success('Account created successfully!');
+      onSuccess();
+    } catch (error: any) {
+      console.error('Registration failed:', error);
+      toast.error(error.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignUp = () => {

@@ -3,15 +3,26 @@
 :root {
   --font-size: 16px;
   
-  /* New Electric Indigo & Teal Color System */
-  --primary: #635BFF;
-  --primary-hover: #574FF0;
-  --primary-press: #453DE0;
-  --accent: #14B8A6;
-  --accent-hover: #119E90;
+  /* Typography scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  
+  /* Sophisticated Slate Color System */
+  --primary: #1e293b;
+  --primary-hover: #334155;
+  --primary-press: #0f172a;
+  --accent: #475569;
+  --accent-hover: #64748b;
   --primary-fg: #FFFFFF;
-  --aurora-hero: linear-gradient(135deg, #5B6BFF 0%, #14B8A6 100%);
-  --aurora-btn: linear-gradient(90deg, #6A66FF 0%, #2BD4B0 100%);
+  --primary-foreground: #FFFFFF;
+  --aurora-hero: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+  --aurora-btn: linear-gradient(90deg, #334155 0%, #475569 100%);
   
   --surface: #FFFFFF;
   --canvas: #F8FAFC;
@@ -38,8 +49,8 @@
   --secondary-foreground: #0F172A;
   --muted: #F8FAFC;
   --muted-foreground: #64748B;
-  --accent: #F8FAFC;
-  --accent-foreground: #0F172A;
+  --accent-surface: #F8FAFC;
+  --accent-surface-foreground: #0F172A;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
   --input: transparent;
@@ -47,8 +58,8 @@
   --switch-background: #E5E7EB;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #635BFF;
-  --chart-1: #635BFF;
+  --ring: #1e293b;
+  --chart-1: #1e293b;
   --chart-2: #22C55E;
   --chart-3: #F59E0B;
   --chart-4: #EF4444;
@@ -56,12 +67,12 @@
   --radius: 1.25rem;
   --sidebar: #FFFFFF;
   --sidebar-foreground: #0F172A;
-  --sidebar-primary: #635BFF;
+  --sidebar-primary: #1e293b;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #F8FAFC;
   --sidebar-accent-foreground: #0F172A;
   --sidebar-border: #E5E7EB;
-  --sidebar-ring: #635BFF;
+  --sidebar-ring: #1e293b;
 }
 
 .dark {
@@ -114,8 +125,8 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent-surface);
+  --color-accent-foreground: var(--accent-surface-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -151,7 +162,7 @@
   --color-success: var(--success);
   --color-primary-hover: var(--primary-hover);
   --color-scrim: var(--scrim);
-  --color-accent: var(--accent);
+  --color-accent-slate: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-primary-fg: var(--primary-fg);
   --color-aurora-hero: var(--aurora-hero);
@@ -169,57 +180,55 @@
 }
 
 /**
- * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ * Base typography - simplified to avoid performance issues
  */
 @layer base {
-  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
-    h1 {
-      font-size: var(--text-2xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
+  h1:not([class*="text-"]) {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
 
-    h2 {
-      font-size: var(--text-xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
+  h2:not([class*="text-"]) {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
 
-    h3 {
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
+  h3:not([class*="text-"]) {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
 
-    h4 {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
+  h4:not([class*="text-"]) {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
 
-    p {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
-    }
+  p:not([class*="text-"]) {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
 
-    label {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
+  label:not([class*="text-"]) {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
 
-    button {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
+  button:not([class*="text-"]) {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
 
-    input {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
-    }
+  input:not([class*="text-"]) {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
   }
 }
 
@@ -294,12 +303,87 @@ html {
 .screens-scroll::-webkit-scrollbar-thumb {
   background: linear-gradient(90deg, var(--primary), var(--primary-hover));
   border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(99, 91, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(30, 41, 59, 0.3);
 }
 
 .screens-scroll::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(90deg, var(--primary-hover), var(--primary));
-  box-shadow: 0 4px 12px rgba(99, 91, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(30, 41, 59, 0.4);
+}
+
+/* Custom scrollbar for appointments */
+.appointments-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--canvas);
+  scroll-behavior: smooth;
+  /* Ensure scrolling works */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.appointments-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.appointments-scroll::-webkit-scrollbar-track {
+  background: var(--canvas);
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+.appointments-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  border: 1px solid var(--canvas);
+}
+
+.appointments-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.appointments-scroll::-webkit-scrollbar-thumb:active {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+/* Force scrollbar to be always visible */
+.appointments-scroll::-webkit-scrollbar {
+  width: 8px !important;
+  display: block !important;
+}
+
+/* Tailwind scrollbar utilities */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-border {
+  scrollbar-color: var(--border) transparent;
+}
+
+.scrollbar-thumb-border::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thumb-border::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.scrollbar-thumb-border::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.scrollbar-thumb-border::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+.scrollbar-track-transparent::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Safe area utilities for mobile */
@@ -323,11 +407,11 @@ html {
 
 /* Aurora gradient utilities */
 .bg-aurora-hero {
-  background: linear-gradient(135deg, #5B6BFF 0%, #14B8A6 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
 }
 
 .bg-aurora-btn {
-  background: linear-gradient(90deg, #6A66FF 0%, #2BD4B0 100%);
+  background: linear-gradient(90deg, #334155 0%, #475569 100%);
 }
 
 /* Premium shadow utilities for FilledSoft inputs */
@@ -336,7 +420,7 @@ html {
 }
 
 .shadow-filled-soft-focus {
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.06), 0 0 0 4px rgba(99,91,255,0.12);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.06), 0 0 0 4px rgba(30,41,59,0.12);
 }
 
 /* Enhanced button hover effects */
@@ -373,4 +457,11 @@ html {
   min-height: 48px;
   display: flex;
   align-items: center;
+}
+
+/* Checkbox indeterminate state */
+[data-slot="checkbox"][data-indeterminate="true"] {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
 }

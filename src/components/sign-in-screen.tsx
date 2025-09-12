@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface SignInScreenProps {
@@ -79,7 +79,7 @@ function CustomInput({
 
 interface CustomButtonProps {
   variant: 'primary' | 'secondary' | 'google';
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
   className?: string;
@@ -285,8 +285,10 @@ export function SignInScreen({ onSignIn, onBack }: SignInScreenProps) {
                 onClick={handleSignIn}
                 disabled={!isFormValid || isLoading}
               >
-                {isLoading ? 'Signing in...' : 'Sign in'}
-                {!isLoading && <ArrowRight size={18} />}
+                <>
+                  {isLoading ? 'Signing in...' : 'Sign in'}
+                  {!isLoading && <ArrowRight size={18} />}
+                </>
               </CustomButton>
             </form>
             
@@ -305,8 +307,10 @@ export function SignInScreen({ onSignIn, onBack }: SignInScreenProps) {
               variant="google"
               onClick={handleGoogleSignIn}
             >
-              <GoogleIcon />
-              Continue with Google
+              <>
+                <GoogleIcon />
+                Continue with Google
+              </>
             </CustomButton>
             
             {/* Footer */}

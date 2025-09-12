@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Filter, X, Calendar, User, ExternalLink, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Copy, QrCode } from 'lucide-react';
+import React, { useState, useMemo, useCallback, memo, useEffect, useRef } from 'react';
+import { Plus, Filter, X, Calendar, User, ExternalLink, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Copy, QrCode, Download, Check, FileText, FileSpreadsheet } from 'lucide-react';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Checkbox } from './ui/checkbox';
@@ -9,229 +10,170 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { MRNActions } from './mrn-utils';
-import { toast } from 'sonner@2.0.3';
+import { FilterButton } from './filter-button';
+import { AddPatientModal } from './add-patient-modal';
+import { toast } from 'sonner';
+import { patientService, Patient, PatientListResponse } from '../services/patientService';
+import { useAuth } from '../contexts/AuthContext';
 
-interface Patient {
-  id: string;
-  name: string;
-  mrn: string;
-  age: number;
-  tags: string[];
-  lastVisit: string;
-  status: 'new-reports' | 'ok';
-  avatar?: string;
-}
+// Patient interface is now imported from patientService
 
 type SortField = 'mrn' | 'name' | 'age' | 'lastVisit' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-const mockPatients: Patient[] = [
-  {
-    id: '1',
-    name: 'Sarah Rodriguez',
-    mrn: 'MRN-2025-1234',
-    age: 34,
-    tags: ['Diabetes', 'Hypertension'],
-    lastVisit: '2024-01-15',
-    status: 'new-reports'
-  },
-  {
-    id: '2',
-    name: 'Michael Chen',
-    mrn: 'MRN-2025-1235',
-    age: 28,
-    tags: ['Annual Checkup'],
-    lastVisit: '2024-01-12',
-    status: 'ok'
-  },
-  {
-    id: '3',
-    name: 'Emma Thompson',
-    mrn: 'MRN-2025-1236',
-    age: 45,
-    tags: ['Cardiology', 'Follow-up'],
-    lastVisit: '2024-01-10',
-    status: 'new-reports'
-  },
-  {
-    id: '4',
-    name: 'David Martinez',
-    mrn: 'MRN-2025-1237',
-    age: 52,
-    tags: ['Orthopedic'],
-    lastVisit: '2024-01-08',
-    status: 'ok'
-  },
-  {
-    id: '5',
-    name: 'Lisa Anderson',
-    mrn: 'MRN-2025-1238',
-    age: 29,
-    tags: ['Pregnancy', 'Routine'],
-    lastVisit: '2024-01-05',
-    status: 'ok'
-  },
-  {
-    id: '6',
-    name: 'Robert Kim',
-    mrn: 'MRN-2025-1239',
-    age: 41,
-    tags: ['Gastroenterology'],
-    lastVisit: '2024-01-03',
-    status: 'new-reports'
-  },
-  {
-    id: '7',
-    name: 'Jennifer Wilson',
-    mrn: 'MRN-2025-1240',
-    age: 37,
-    tags: ['Dermatology'],
-    lastVisit: '2024-01-01',
-    status: 'ok'
-  },
-  {
-    id: '8',
-    name: 'James Brown',
-    mrn: 'MRN-2025-1241',
-    age: 55,
-    tags: ['Cardiology', 'Diabetes'],
-    lastVisit: '2023-12-28',
-    status: 'new-reports'
-  },
-  {
-    id: '9',
-    name: 'Maria Garcia',
-    mrn: 'MRN-2025-1242',
-    age: 42,
-    tags: ['Routine'],
-    lastVisit: '2023-12-25',
-    status: 'ok'
-  },
-  {
-    id: '10',
-    name: 'Thomas Johnson',
-    mrn: 'MRN-2025-1243',
-    age: 31,
-    tags: ['Sports Medicine'],
-    lastVisit: '2023-12-22',
-    status: 'ok'
-  },
-  {
-    id: '11',
-    name: 'Susan Davis',
-    mrn: 'MRN-2025-1244',
-    age: 48,
-    tags: ['Endocrinology'],
-    lastVisit: '2023-12-20',
-    status: 'new-reports'
-  },
-  {
-    id: '12',
-    name: 'William Miller',
-    mrn: 'MRN-2025-1245',
-    age: 39,
-    tags: ['Annual Checkup'],
-    lastVisit: '2023-12-18',
-    status: 'ok'
+// Helper function to calculate age from date of birth
+const calculateAge = (dob: string | null): number => {
+  if (!dob) return 0;
+  const today = new Date();
+  const birthDate = new Date(dob);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
   }
-];
+  return age;
+};
 
-const allTags = Array.from(new Set(mockPatients.flatMap(p => p.tags)));
+// Helper function to format date for display
+const formatDate = (dateString: string | null): string => {
+  if (!dateString) return 'Never';
+  const date = new Date(dateString);
+  return date.toLocaleDateString();
+};
 
 interface PatientsScreenProps {
   onPatientClick?: (patientId: string) => void;
 }
 
 export function PatientsScreen({ onPatientClick }: PatientsScreenProps) {
+  // Doctor ID - in a real app, this would come from auth context
+  const doctorId = 'test-doctor-123';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [mrnFilter, setMrnFilter] = useState('');
+  const [timeRange, setTimeRange] = useState<'24h' | '1d' | '7d' | '30d' | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'ok' | 'inactive'>('all');
   const [sortField, setSortField] = useState<SortField>('lastVisit');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedPatients, setSelectedPatients] = useState<string[]>([]);
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const [addPatientModalOpen, setAddPatientModalOpen] = useState(false);
+  
+  // API state
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [totalPatients, setTotalPatients] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<any[]>([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  
+  // Debounced search
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
 
-  // Filter, sort, and paginate patients
-  const processedPatients = useMemo(() => {
-    let filtered = mockPatients;
-
-    // Apply search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(patient => 
-        patient.name.toLowerCase().includes(query) ||
-        patient.mrn.toLowerCase().includes(query) ||
-        patient.tags.some(tag => tag.toLowerCase().includes(query))
-      );
+  // Debounce search query
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
-
-    // Apply filters
-    if (selectedTags.length > 0) {
-      filtered = filtered.filter(patient => 
-        patient.tags.some(tag => selectedTags.includes(tag))
-      );
+    
+    // Show searching indicator if there's a query but it hasn't been debounced yet
+    if (searchQuery && searchQuery !== debouncedSearchQuery) {
+      setIsSearching(true);
     }
+    
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setIsSearching(false);
+    }, 300); // 300ms delay
 
-    if (mrnFilter) {
-      filtered = filtered.filter(patient => 
-        patient.mrn.toLowerCase().includes(mrnFilter.toLowerCase())
-      );
-    }
-
-    if (dateRange.from) {
-      filtered = filtered.filter(patient => 
-        new Date(patient.lastVisit) >= new Date(dateRange.from)
-      );
-    }
-
-    if (dateRange.to) {
-      filtered = filtered.filter(patient => 
-        new Date(patient.lastVisit) <= new Date(dateRange.to)
-      );
-    }
-
-    // Apply sorting
-    const sorted = [...filtered].sort((a, b) => {
-      let aValue: any, bValue: any;
-
-      switch (sortField) {
-        case 'mrn':
-          aValue = a.mrn.toLowerCase();
-          bValue = b.mrn.toLowerCase();
-          break;
-        case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case 'age':
-          aValue = a.age;
-          bValue = b.age;
-          break;
-        case 'lastVisit':
-          aValue = new Date(a.lastVisit);
-          bValue = new Date(b.lastVisit);
-          break;
-        case 'status':
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        default:
-          return 0;
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
       }
+    };
+  }, [searchQuery, debouncedSearchQuery]);
 
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
+  // Load autocomplete suggestions
+  const loadAutocomplete = useCallback(async (query: string) => {
+    if (!query || query.trim().length < 2) {
+      setAutocompleteSuggestions([]);
+      setShowAutocomplete(false);
+      return;
+    }
 
-    return sorted;
-  }, [searchQuery, selectedTags, mrnFilter, dateRange, sortField, sortDirection]);
+    // TODO: Re-enable when autocomplete API is fixed
+    // try {
+    //   const suggestions = await patientService.autocompletePatients(doctorId, query, 8);
+    //   setAutocompleteSuggestions(suggestions);
+    //   setShowAutocomplete(true);
+    // } catch (error) {
+    //   console.error('Failed to load autocomplete suggestions:', error);
+    //   setAutocompleteSuggestions([]);
+    //   setShowAutocomplete(false);
+    // }
+  }, [doctorId]);
 
-  // Pagination
-  const totalPages = Math.ceil(processedPatients.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedPatients = processedPatients.slice(startIndex, startIndex + itemsPerPage);
+  // Debounced autocomplete
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadAutocomplete(searchQuery);
+    }, 200); // Shorter delay for autocomplete
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, loadAutocomplete]);
+
+  // Load patients from API
+  const loadPatients = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const params = {
+        doctor_id: doctorId,
+        page: currentPage,
+        per_page: itemsPerPage,
+        q: debouncedSearchQuery || undefined,
+        tags: selectedTags.length > 0 ? selectedTags : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        sort: sortField === 'lastVisit' ? 'last_visit' : sortField,
+        order: sortDirection,
+        ...(dateRange.from && { last_visit_from: dateRange.from }),
+        ...(dateRange.to && { last_visit_to: dateRange.to }),
+      };
+
+      // Use regular patients endpoint for both listing and searching
+      // The /v1/patients endpoint already supports search with the 'q' parameter
+      // TODO: Fix search API endpoint when backend issues are resolved
+      const response = await patientService.getPatients(params);
+        
+      setPatients(response.items);
+      setTotalPatients(response.meta.total);
+      setTotalPages(response.meta.total_pages);
+      
+      // Extract all unique tags from patients
+      const tags = Array.from(new Set(response.items.flatMap(p => p.tags)));
+      setAllTags(tags);
+    } catch (err: any) {
+      console.error('Failed to load patients:', err);
+      setError(err.message || 'Failed to load patients');
+      toast.error('Failed to load patients');
+    } finally {
+      setLoading(false);
+    }
+  }, [doctorId, currentPage, itemsPerPage, debouncedSearchQuery, selectedTags, statusFilter, sortField, sortDirection, dateRange]);
+
+  // Load patients when dependencies change
+  useEffect(() => {
+    loadPatients();
+  }, [loadPatients]);
 
   const handleTagFilter = (tag: string, checked: boolean) => {
     setSelectedTags(prev => 
@@ -252,6 +194,26 @@ export function PatientsScreen({ onPatientClick }: PatientsScreenProps) {
       setSortField(field);
       setSortDirection('asc');
     }
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (perPage: number) => {
+    setItemsPerPage(perPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
+  const handleStatusFilter = (status: 'all' | 'new' | 'ok' | 'inactive') => {
+    setStatusFilter(status);
+    setCurrentPage(1); // Reset to first page when filtering by status
   };
 
   const clearFilters = () => {
@@ -259,23 +221,88 @@ export function PatientsScreen({ onPatientClick }: PatientsScreenProps) {
     setSelectedTags([]);
     setMrnFilter('');
     setDateRange({ from: '', to: '' });
+    setTimeRange('all');
+    setStatusFilter('all');
     setCurrentPage(1);
   };
 
-  const hasActiveFilters = searchQuery || selectedTags.length > 0 || mrnFilter || dateRange.from || dateRange.to;
+  const hasActiveFilters = searchQuery || selectedTags.length > 0 || mrnFilter || dateRange.from || dateRange.to || statusFilter !== 'all';
+  const hasTimeRangeFilter = timeRange !== 'all';
+  const totalActiveFilters = (hasActiveFilters ? 1 : 0) + (hasTimeRangeFilter ? 1 : 0);
+
+  const handleTimeRangeChange = useCallback((range: '24h' | '1d' | '7d' | '30d' | 'all') => {
+    setTimeRange(range);
+    setCurrentPage(1);
+  }, []);
+
+  const timeRangeLabels = {
+    '24h': '24 Hours',
+    '1d': '1 Day',
+    '7d': '7 Days', 
+    '30d': '30 Days',
+    'all': 'All'
+  };
+
+  const toggleSelectMode = () => {
+    setSelectMode(!selectMode);
+    if (selectMode) {
+      setSelectedPatients([]);
+    }
+  };
+
+  const togglePatientSelection = (patientId: string) => {
+    setSelectedPatients(prev => 
+      prev.includes(patientId) 
+        ? prev.filter(id => id !== patientId)
+        : [...prev, patientId]
+    );
+  };
+
+  const selectAllPatients = () => {
+    setSelectedPatients(patients.map(p => p.id));
+  };
+
+  const selectAllAcrossPages = () => {
+    setSelectedPatients(patients.map(p => p.id));
+  };
+
+  const clearSelection = () => {
+    setSelectedPatients([]);
+  };
+
+  const handleExport = () => {
+    const patientsToExport = selectedPatients.length > 0 
+      ? patients.filter(p => selectedPatients.includes(p.id))
+      : patients;
+    
+    toast.success(`Exporting ${patientsToExport.length} patients to CSV...`);
+  };
+
+  const exportSelected = () => {
+    const patientsToExport = patients.filter(p => selectedPatients.includes(p.id));
+    toast.success(`Exporting ${patientsToExport.length} selected patients to CSV...`);
+  };
+
+  const handleExportCSV = () => {
+    const patientsToExport = selectedPatients.length > 0 
+      ? patients.filter(p => selectedPatients.includes(p.id))
+      : patients;
+    
+    toast.success(`Exporting ${patientsToExport.length} patients to CSV...`);
+  };
+
+  const handleExportExcel = () => {
+    const patientsToExport = selectedPatients.length > 0 
+      ? patients.filter(p => selectedPatients.includes(p.id))
+      : patients;
+    
+    toast.success(`Exporting ${patientsToExport.length} patients to Excel...`);
+  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('');
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
 
   const handleRowClick = (patientId: string) => {
     if (onPatientClick) {
@@ -289,136 +316,190 @@ export function PatientsScreen({ onPatientClick }: PatientsScreenProps) {
     <div className="flex-1 overflow-hidden">
       <div className="max-w-[1440px] mx-auto px-6 py-6 h-full flex flex-col">
         {/* Header */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
             <h1 className="text-text">Patients</h1>
-            
-            {/* Search Bar */}
-            <div className="relative w-80">
-              <Input
-                placeholder="Search by name, MRN, or tags..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-surface border-border rounded-2xl pl-4"
-              />
-            </div>
+            {debouncedSearchQuery && debouncedSearchQuery.trim().length > 0 && (
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                Search: "{debouncedSearchQuery}"
+              </Badge>
+            )}
           </div>
           
+          {/* Search Bar */}
+          <div className="relative w-80">
+            <Input
+              placeholder="Search by name, MRN, or tags..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              onFocus={() => {
+                if (autocompleteSuggestions.length > 0) {
+                  setShowAutocomplete(true);
+                }
+              }}
+              onBlur={() => {
+                // Delay hiding to allow clicking on suggestions
+                setTimeout(() => setShowAutocomplete(false), 200);
+              }}
+              className="bg-surface border-border rounded-2xl pl-4 pr-10"
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+              {isSearching && (
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              )}
+              {debouncedSearchQuery && debouncedSearchQuery.trim().length > 0 && !isSearching && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setCurrentPage(1);
+                    setShowAutocomplete(false);
+                  }}
+                  className="h-6 w-6 p-0 text-subtext hover:text-text"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+            
+            {/* Autocomplete Dropdown */}
+            {showAutocomplete && autocompleteSuggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-2xl shadow-lg z-50 max-h-60 overflow-y-auto">
+                {autocompleteSuggestions.map((suggestion, index) => (
+                  <div
+                    key={index}
+                    className="px-4 py-3 hover:bg-muted cursor-pointer border-b border-border last:border-b-0"
+                    onClick={() => {
+                      setSearchQuery(suggestion.text || suggestion.name || '');
+                      setShowAutocomplete(false);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="bg-primary/10 text-text text-sm">
+                          {suggestion.initials || suggestion.name?.charAt(0) || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-text font-medium truncate">
+                          {suggestion.name || suggestion.text}
+                        </p>
+                        {suggestion.mrn && (
+                          <p className="text-subtext text-sm font-mono">
+                            {suggestion.mrn}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex items-center justify-end mb-6">
           <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              className="border border-border bg-surface hover:bg-accent rounded-2xl"
+            {/* Export Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="px-4 py-2 rounded-2xl bg-surface text-subtext border border-border hover:bg-accent"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                  <ChevronDown className="w-4 h-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-surface border border-border rounded-2xl shadow-sm p-1">
+                <DropdownMenuItem 
+                  onClick={handleExportCSV}
+                  className="rounded-lg cursor-pointer hover:bg-accent focus:bg-accent"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Export CSV (.csv)
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={handleExportExcel}
+                  className="rounded-lg cursor-pointer hover:bg-accent focus:bg-accent"
+                >
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Export Excel (.xlsx)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Select Button */}
+            <Button
+              variant="ghost"
+              onClick={toggleSelectMode}
+              className={`px-4 py-2 rounded-2xl border transition-all ${
+                selectMode
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-surface text-subtext border-border hover:bg-accent'
+              }`}
+            >
+              {selectMode && <Check className="w-4 h-4 mr-2" />}
+              Select
+            </Button>
+
+            {/* Add Patient Button */}
+            <Button
+              variant="ghost"
+              onClick={() => setAddPatientModalOpen(true)}
+              className="px-4 py-2 rounded-2xl bg-surface text-subtext border border-border hover:bg-accent"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Patient
             </Button>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  className={`border border-border bg-surface hover:bg-accent rounded-2xl relative ${
-                    hasActiveFilters ? 'border-primary bg-primary/5' : ''
-                  }`}
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filters
-                  {hasActiveFilters && (
-                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full"></div>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 bg-surface border border-border rounded-2xl shadow-sm p-6">
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-text">Filters</h3>
-                    {hasActiveFilters && (
-                      <Button 
-                        variant="ghost" 
-                        onClick={clearFilters}
-                        className="text-subtext hover:text-text text-sm p-0 h-auto"
-                      >
-                        Clear all
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {/* MRN Filter */}
-                  <div>
-                    <Label className="text-text mb-3 block">Find by MRN</Label>
-                    <Input
-                      placeholder="Enter MRN (e.g., MRN-2025-1234)"
-                      value={mrnFilter}
-                      onChange={(e) => {
-                        setMrnFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="bg-canvas border-border rounded-xl font-mono"
-                    />
-                  </div>
 
-                  {/* Tags Filter */}
-                  <div>
-                    <Label className="text-text mb-3 block">Tags</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {allTags.map(tag => (
-                        <div key={tag} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={tag}
-                            checked={selectedTags.includes(tag)}
-                            onCheckedChange={(checked) => handleTagFilter(tag, !!checked)}
-                            className="border-border"
-                          />
-                          <Label 
-                            htmlFor={tag} 
-                            className="text-sm text-subtext cursor-pointer"
-                          >
-                            {tag}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Date Range Filter */}
-                  <div>
-                    <Label className="text-text mb-3 block">Last Visit Range</Label>
-                    <div className="space-y-3">
-                      <div>
-                        <Label htmlFor="from-date" className="text-sm text-subtext">From</Label>
-                        <Input
-                          id="from-date"
-                          type="date"
-                          value={dateRange.from}
-                          onChange={(e) => handleDateRangeFilter('from', e.target.value)}
-                          className="mt-1 bg-canvas border-border rounded-xl"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="to-date" className="text-sm text-subtext">To</Label>
-                        <Input
-                          id="to-date"
-                          type="date"
-                          value={dateRange.to}
-                          onChange={(e) => handleDateRangeFilter('to', e.target.value)}
-                          className="mt-1 bg-canvas border-border rounded-xl"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+            {/* Filters */}
+            <FilterButton
+              isOpen={filterPopoverOpen}
+              onOpenChange={setFilterPopoverOpen}
+              timeRange={timeRange}
+              onTimeRangeChange={handleTimeRangeChange}
+              totalActiveFilters={totalActiveFilters}
+            />
           </div>
         </div>
+
+
 
         {/* Table Container */}
         <div className="bg-surface rounded-3xl border border-border shadow-sm flex-1 flex flex-col overflow-hidden">
           {/* Table Header */}
-          <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-border bg-canvas text-subtext text-sm">
+          <div className={`grid gap-4 px-6 py-4 border-b border-border bg-canvas text-subtext text-sm ${
+            selectMode ? 'grid-cols-13' : 'grid-cols-12'
+          }`}>
+            {/* Checkbox Column */}
+            {selectMode && (
+              <div className="flex items-center justify-center">
+                <Checkbox
+                  checked={patients.length > 0 && patients.every(p => selectedPatients.includes(p.id))}
+                  indeterminate={patients.some(p => selectedPatients.includes(p.id)) && !patients.every(p => selectedPatients.includes(p.id))}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      selectAllPatients();
+                    } else {
+                      // Clear only the patients on current page
+                      const currentPageIds = patients.map(p => p.id);
+                      setSelectedPatients(prev => prev.filter(id => !currentPageIds.includes(id)));
+                    }
+                  }}
+                  className="border-border"
+                />
+              </div>
+            )}
+
             {/* MRN - Sortable (Pinned Left) */}
             <div 
               className="col-span-2 flex items-center gap-2 cursor-pointer hover:text-text transition-colors font-mono"
@@ -521,12 +602,34 @@ export function PatientsScreen({ onPatientClick }: PatientsScreenProps) {
               </div>
             </div>
             
-            <div className="col-span-1">Action</div>
+            {!selectMode && <div className="col-span-1">Action</div>}
           </div>
 
           {/* Table Body */}
           <div className="flex-1 overflow-y-auto">
-            {paginatedPatients.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center h-64 text-subtext">
+                <div className="text-center">
+                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p>Loading patients...</p>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="flex items-center justify-center h-64 text-subtext">
+                <div className="text-center">
+                  <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Error loading patients</p>
+                  <p className="text-sm text-red-500 mt-2">{error}</p>
+                  <Button 
+                    variant="ghost" 
+                    onClick={loadPatients}
+                    className="mt-2 text-primary hover:text-primary-hover"
+                  >
+                    Try again
+                  </Button>
+                </div>
+              </div>
+            ) : patients.length === 0 ? (
               <div className="flex items-center justify-center h-64 text-subtext">
                 <div className="text-center">
                   <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -543,14 +646,29 @@ export function PatientsScreen({ onPatientClick }: PatientsScreenProps) {
                 </div>
               </div>
             ) : (
-              paginatedPatients.map((patient, index) => (
+              patients.map((patient, index) => (
                 <div
                   key={patient.id}
-                  onClick={() => handleRowClick(patient.id)}
-                  className={`grid grid-cols-12 gap-4 px-6 py-4 cursor-pointer hover:bg-canvas hover:shadow-sm transition-all duration-200 group ${
-                    index !== paginatedPatients.length - 1 ? 'border-b border-border' : ''
+                  onClick={() => !selectMode && handleRowClick(patient.id)}
+                  className={`grid gap-4 px-6 py-4 transition-all duration-200 group ${
+                    selectMode ? 'grid-cols-13' : 'grid-cols-12'
+                  } ${
+                    !selectMode ? 'cursor-pointer hover:bg-canvas hover:shadow-sm' : ''
+                  } ${
+                    index !== patients.length - 1 ? 'border-b border-border' : ''
                   }`}
                 >
+                  {/* Checkbox Column */}
+                  {selectMode && (
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        checked={selectedPatients.includes(patient.id)}
+                        onCheckedChange={() => togglePatientSelection(patient.id)}
+                        className="border-border"
+                      />
+                    </div>
+                  )}
+
                   {/* MRN (Pinned Left) */}
                   <div className="col-span-2 flex items-center gap-2">
                     <div className="flex items-center gap-2">
@@ -561,19 +679,12 @@ export function PatientsScreen({ onPatientClick }: PatientsScreenProps) {
 
                   {/* Patient */}
                   <div className="col-span-3 flex items-center gap-3">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-primary/10 text-text text-sm">
-                        {getInitials(patient.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-text">{patient.name}</p>
-                    </div>
+                      <p className="text-text">{patient.full_name}</p>
                   </div>
 
                   {/* Age */}
                   <div className="col-span-1 flex items-center">
-                    <span className="text-text">{patient.age}</span>
+                    <span className="text-text">{calculateAge(patient.dob)}</span>
                   </div>
 
                   {/* Tags */}
@@ -598,46 +709,88 @@ export function PatientsScreen({ onPatientClick }: PatientsScreenProps) {
                   <div className="col-span-2 flex items-center">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-subtext" />
-                      <span className="text-text">{formatDate(patient.lastVisit)}</span>
+                      <span className="text-text">{formatDate(patient.last_visit_at)}</span>
                     </div>
                   </div>
 
                   {/* Status */}
                   <div className="col-span-1 flex items-center">
                     <Badge 
-                      variant={patient.status === 'new-reports' ? 'destructive' : 'secondary'}
+                      variant={patient.status === 'new' ? 'destructive' : 'secondary'}
                       className={`rounded-lg text-xs px-2 py-1 ${
-                        patient.status === 'new-reports' 
+                        patient.status === 'new' 
                           ? 'bg-danger/10 text-danger border-danger/20' 
-                          : 'bg-success/10 text-success border-success/20'
+                          : patient.status === 'ok'
+                          ? 'bg-success/10 text-success border-success/20'
+                          : 'bg-warning/10 text-warning border-warning/20'
                       }`}
                     >
-                      {patient.status === 'new-reports' ? 'New' : 'OK'}
+                      {patient.status === 'new' ? 'New' : patient.status === 'ok' ? 'OK' : 'Inactive'}
                     </Badge>
                   </div>
 
                   {/* Action (Pinned Right) */}
-                  <div className="col-span-1 flex items-center">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="rounded-xl text-primary hover:text-primary-hover hover:bg-primary/5 px-3"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRowClick(patient.id);
-                      }}
-                    >
-                      <ExternalLink className="w-4 h-4 mr-1" />
-                      Open
-                    </Button>
-                  </div>
+                  {!selectMode && (
+                    <div className="col-span-1 flex items-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-xl text-primary hover:text-primary-hover hover:bg-primary/5 px-3"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRowClick(patient.id);
+                        }}
+                      >
+                        <ExternalLink className="w-4 h-4 mr-1" />
+                        Open
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
           </div>
+
+          {/* Selection Bar - positioned above table footer */}
+          {selectMode && selectedPatients.length > 0 && (
+            <div className="border-t border-border bg-canvas px-6 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-text text-sm">
+                  {selectedPatients.length} selected
+                </span>
+                <span className="text-subtext">•</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={selectAllAcrossPages}
+                  className="text-primary hover:text-primary-hover text-sm p-0 h-auto"
+                >
+                  Select all across pages
+                </Button>
+                <span className="text-subtext">•</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={exportSelected}
+                  className="text-primary hover:text-primary-hover text-sm p-0 h-auto"
+                >
+                  Export CSV
+                </Button>
+                <span className="text-subtext">•</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearSelection}
+                  className="text-subtext hover:text-text text-sm p-0 h-auto"
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          )}
           
           {/* Pagination */}
-          {processedPatients.length > 0 && (
+          {patients.length > 0 && (
             <div className="border-t border-border bg-canvas px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -662,7 +815,7 @@ export function PatientsScreen({ onPatientClick }: PatientsScreenProps) {
                 </div>
                 
                 <span className="text-subtext text-sm">
-                  Showing {startIndex + 1}–{Math.min(startIndex + itemsPerPage, processedPatients.length)} of {processedPatients.length}
+                  Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, totalPatients)} of {totalPatients}
                 </span>
               </div>
 
@@ -722,6 +875,13 @@ export function PatientsScreen({ onPatientClick }: PatientsScreenProps) {
           )}
         </div>
       </div>
+
+      {/* Add Patient Modal */}
+        <AddPatientModal 
+          isOpen={addPatientModalOpen} 
+          onOpenChange={setAddPatientModalOpen}
+          onPatientAdded={loadPatients}
+        />
     </div>
   );
 }

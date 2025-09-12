@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { CompactSignUpLayout } from './compact-sign-up-layout';
 import { AuroraLayout } from './aurora-layout';
 import { AuroraButton } from './aurora-button';
-import { toast } from 'sonner@2.0.3';
-import { AuthScreen } from './premium-sign-in';
+import { toast } from 'sonner';
+import { AuthScreen } from '../premium-auth-flow';
 
 interface PremiumSignUpProps {
   onSuccess: () => void;

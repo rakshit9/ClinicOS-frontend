@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Home, Users, Calendar, AlertTriangle, Settings, ChevronRight } from 'lucide-react';
 
 type ActiveScreen = 'overview' | 'patients' | 'appointments' | 'alerts' | 'settings';

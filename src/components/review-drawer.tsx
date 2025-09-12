@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, FileText, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
 import { StatusBadge } from './status-badge';

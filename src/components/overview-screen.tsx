@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Clock, Edit, MoreHorizontal } from 'lucide-react';
 import { Button } from './ui/button';
 import { StatusBadge } from './status-badge';
@@ -7,8 +7,10 @@ import { RescheduleModal } from './reschedule-modal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { MRNChip } from './mrn-utils';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { appointmentService, AppointmentWithPatient } from '../services/appointmentService';
 
+// Mock data for needs review (will be replaced with API later)
 const needsReviewData = [
   {
     id: 1,
@@ -39,49 +41,68 @@ const needsReviewData = [
   }
 ];
 
-const todayAppointments = [
-  {
-    id: 1,
-    time: '9:00 AM',
-    patient: 'Emily Watson',
-    mrn: 'MRN-2025-1243',
-    type: 'Follow-up',
-    status: 'pending' as const
-  },
-  {
-    id: 2,
-    time: '10:30 AM',
-    patient: 'James Miller',
-    mrn: 'MRN-2025-1244',
-    type: 'Consultation',
-    status: 'confirmed' as const
-  },
-  {
-    id: 3,
-    time: '2:00 PM',
-    patient: 'Lisa Anderson',
-    mrn: 'MRN-2025-1245',
-    type: 'Check-up',
-    status: 'completed' as const
-  },
-  {
-    id: 4,
-    time: '3:30 PM',
-    patient: 'Robert Taylor',
-    mrn: 'MRN-2025-1246',
-    type: 'Follow-up',
-    status: 'pending' as const
-  }
-];
-
 export function OverviewScreen() {
   const [selectedReview, setSelectedReview] = useState<typeof needsReviewData[0] | null>(null);
-  const [selectedAppointment, setSelectedAppointment] = useState<typeof todayAppointments[0] | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithPatient | null>(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [todayAppointments, setTodayAppointments] = useState<AppointmentWithPatient[]>([]);
+  const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
+  const [appointmentSummary, setAppointmentSummary] = useState({
+    total: 0,
+    pending: 0,
+    confirmed: 0,
+    completed: 0,
+    cancelled: 0
+  });
 
-  const handleReschedule = (appointment: typeof todayAppointments[0]) => {
+  // Load today's appointments
+  const loadTodayAppointments = useCallback(async () => {
+    try {
+      setIsLoadingAppointments(true);
+      const appointments = await appointmentService.getTodayAppointments();
+      setTodayAppointments(appointments);
+      
+      // Load summary
+      const summary = await appointmentService.getAppointmentSummary();
+      setAppointmentSummary(summary);
+    } catch (error) {
+      console.error('Failed to load today\'s appointments:', error);
+      toast.error('Failed to load today\'s appointments');
+    } finally {
+      setIsLoadingAppointments(false);
+    }
+  }, []);
+
+  // Load appointments on component mount
+  useEffect(() => {
+    loadTodayAppointments();
+  }, [loadTodayAppointments]);
+
+  const handleReschedule = (appointment: AppointmentWithPatient) => {
     setSelectedAppointment(appointment);
     setShowRescheduleModal(true);
+  };
+
+  const handleConfirmAppointment = async (appointmentId: string) => {
+    try {
+      await appointmentService.updateAppointment(appointmentId, { status: 'confirmed' });
+      toast.success('Appointment confirmed');
+      loadTodayAppointments(); // Refresh the list
+    } catch (error) {
+      console.error('Failed to confirm appointment:', error);
+      toast.error('Failed to confirm appointment');
+    }
+  };
+
+  const handleCompleteAppointment = async (appointmentId: string) => {
+    try {
+      await appointmentService.updateAppointment(appointmentId, { status: 'completed' });
+      toast.success('Appointment completed');
+      loadTodayAppointments(); // Refresh the list
+    } catch (error) {
+      console.error('Failed to complete appointment:', error);
+      toast.error('Failed to complete appointment');
+    }
   };
 
   return (
@@ -161,57 +182,96 @@ export function OverviewScreen() {
           {/* Today's Appointments */}
           <div className="col-span-12 md:col-span-7">
             <div className="bg-surface rounded-3xl p-6 border border-border shadow-sm">
-              <h2 className="text-text mb-6">Today's Appointments</h2>
-              <div className="space-y-4">
-                {todayAppointments.map((appointment) => (
-                  <div key={appointment.id} className="flex items-center justify-between p-4 bg-canvas rounded-2xl border border-border">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2 text-subtext text-sm">
-                        <Clock className="w-4 h-4" />
-                        {appointment.time}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-3 mb-1">
-                          <p className="text-text font-medium">{appointment.patient}</p>
-                          <MRNChip 
-                            mrn={appointment.mrn} 
-                            size="sm" 
-                            showCopy={false}
-                            onClick={() => {
-                              navigator.clipboard.writeText(appointment.mrn);
-                              toast.success('MRN copied');
-                            }}
-                          />
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-text">Today's Appointments</h2>
+                {todayAppointments.length > 5 && (
+                  <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full">
+                    Scroll to see all
+                  </span>
+                )}
+              </div>
+              {isLoadingAppointments ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-subtext">Loading appointments...</div>
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Scroll indicator for many appointments */}
+                  {todayAppointments.length > 5 && (
+                    <div className="absolute top-0 right-0 z-10 bg-gradient-to-b from-surface to-transparent h-6 w-full pointer-events-none" />
+                  )}
+                  
+                  <div className="max-h-[400px] overflow-y-auto pr-2 appointments-scroll">
+                    <div className="space-y-4">
+                    {todayAppointments.length > 0 ? (
+                      todayAppointments.map((appointment) => (
+                      <div key={appointment.id} className="flex items-center justify-between p-4 bg-canvas rounded-2xl border border-border">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2 text-subtext text-sm">
+                            <Clock className="w-4 h-4" />
+                            {appointment.start_time}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-3 mb-1">
+                              <p className="text-text font-medium">{appointment.patient.full_name}</p>
+                              <MRNChip 
+                                mrn={appointment.patient.mrn} 
+                                size="sm" 
+                                showCopy={false}
+                                onClick={() => {
+                                  navigator.clipboard.writeText(appointment.patient.mrn);
+                                  toast.success('MRN copied');
+                                }}
+                              />
+                            </div>
+                            <p className="text-subtext text-sm capitalize">{appointment.appointment_type.replace('-', ' ')}</p>
+                          </div>
                         </div>
-                        <p className="text-subtext text-sm">{appointment.type}</p>
+                        <div className="flex items-center gap-3">
+                          <StatusBadge variant={appointment.status === 'cancelled' ? 'low' : appointment.status}>
+                            {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                          </StatusBadge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="rounded-xl">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-2xl">
+                              {appointment.status === 'pending' && (
+                                <DropdownMenuItem onClick={() => handleConfirmAppointment(appointment.id)}>
+                                  Confirm
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => handleReschedule(appointment)}>
+                                Reschedule
+                              </DropdownMenuItem>
+                              {appointment.status !== 'completed' && (
+                                <DropdownMenuItem onClick={() => handleCompleteAppointment(appointment.id)}>
+                                  Complete
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge variant={appointment.status}>
-                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                      </StatusBadge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="rounded-xl">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-2xl">
-                          {appointment.status === 'pending' && (
-                            <DropdownMenuItem>Confirm</DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem onClick={() => handleReschedule(appointment)}>
-                            Reschedule
-                          </DropdownMenuItem>
-                          {appointment.status !== 'completed' && (
-                            <DropdownMenuItem>Complete</DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                    ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <Calendar className="w-12 h-12 text-subtext mx-auto mb-4" />
+                        <h3 className="text-text mb-2">No appointments today</h3>
+                        <p className="text-subtext">You have no appointments scheduled for today</p>
+                      </div>
+                    )}
                     </div>
                   </div>
-                ))}
-              </div>
+                  
+                  {/* Bottom scroll indicator for many appointments */}
+                  {todayAppointments.length > 5 && (
+                    <div className="absolute bottom-0 right-0 z-10 bg-gradient-to-t from-surface to-transparent h-6 w-full pointer-events-none" />
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -256,7 +316,11 @@ export function OverviewScreen() {
           setShowRescheduleModal(false);
           setSelectedAppointment(null);
         }}
-        appointment={selectedAppointment || undefined}
+        appointment={selectedAppointment ? {
+          patient: selectedAppointment.patient.full_name,
+          time: selectedAppointment.start_time,
+          type: selectedAppointment.appointment_type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
+        } : undefined}
       />
     </div>
   );

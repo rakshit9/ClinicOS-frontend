@@ -5,8 +5,9 @@ import { TextField } from './text-field';
 import { AuroraButton } from './aurora-button';
 import { PremiumPasswordStrength } from './premium-password-strength';
 import { PremiumOTP } from './premium-otp';
-import { toast } from 'sonner@2.0.3';
-import { AuthScreen } from './premium-sign-in';
+import { toast } from 'sonner';
+import { useAuth } from '../../contexts/AuthContext';
+import { AuthScreen } from '../premium-auth-flow';
 
 interface PremiumForgotPasswordProps {
   onNavigate: (screen: AuthScreen) => void;
@@ -18,6 +19,7 @@ interface PremiumResetPasswordProps {
 
 // Forgot Password Screen
 export function PremiumForgotPassword({ onNavigate }: PremiumForgotPasswordProps) {
+  const { forgotPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -40,11 +42,15 @@ export function PremiumForgotPassword({ onNavigate }: PremiumForgotPasswordProps
     setIsLoading(true);
     setError('');
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    setIsLoading(false);
-    setShowSuccess(true);
+    try {
+      await forgotPassword(email);
+      setShowSuccess(true);
+    } catch (error: any) {
+      console.error('Forgot password failed:', error);
+      setError(error.message || 'Failed to send reset email. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResend = async () => {
@@ -174,6 +180,7 @@ export function PremiumForgotPassword({ onNavigate }: PremiumForgotPasswordProps
 
 // Reset Password Screen
 export function PremiumResetPassword({ onNavigate }: PremiumResetPasswordProps) {
+  const { resetPassword } = useAuth();
   const [formData, setFormData] = useState({
     newPassword: '',
     confirmPassword: ''
@@ -213,12 +220,24 @@ export function PremiumResetPassword({ onNavigate }: PremiumResetPasswordProps) 
 
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // Get token from URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      
+      if (!token) {
+        throw new Error('Reset token not found in URL');
+      }
 
-    setIsLoading(false);
-    toast.success('Password updated—sign in to continue');
-    onNavigate('signin');
+      await resetPassword(token, formData.newPassword);
+      toast.success('Password updated—sign in to continue');
+      onNavigate('signin');
+    } catch (error: any) {
+      console.error('Reset password failed:', error);
+      toast.error(error.message || 'Failed to reset password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVerifyOTP = async () => {

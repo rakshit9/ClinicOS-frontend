@@ -1,171 +1,125 @@
-import React, { useState } from 'react';
-import { Calendar, Clock, User, MoreHorizontal, CheckCircle, Clock3, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Calendar, ChevronDown, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { AppointmentRow } from './appointment-row';
 import { RescheduleModal } from './reschedule-modal';
+import { appointmentService, AppointmentWithPatient, AppointmentSummary } from '../services/appointmentService';
+import { toast } from 'sonner';
 
 type ViewMode = 'day' | 'week' | 'month';
-type AppointmentStatus = 'pending' | 'confirmed' | 'completed';
-
-interface Appointment {
-  id: string;
-  time: string;
-  patientName: string;
-  patientId: string;
-  visitType: 'Check-up' | 'Follow-up' | 'Lab Review';
-  status: AppointmentStatus;
-  duration: number; // in minutes
-  notes?: string;
-}
 
 interface AppointmentsScreenProps {
   onPatientClick?: (patientId: string) => void;
 }
 
-// Mock appointments data
-const mockAppointments: Appointment[] = [
-  {
-    id: '1',
-    time: '09:00',
-    patientName: 'Sarah Rodriguez',
-    patientId: 'patient-1',
-    visitType: 'Check-up',
-    status: 'confirmed',
-    duration: 30,
-    notes: 'Regular check-up'
-  },
-  {
-    id: '2',
-    time: '09:30',
-    patientName: 'Michael Chen',
-    patientId: 'patient-2',
-    visitType: 'Follow-up',
-    status: 'pending',
-    duration: 45,
-    notes: 'Post-surgery follow-up'
-  },
-  {
-    id: '3',
-    time: '10:30',
-    patientName: 'Emily Johnson',
-    patientId: 'patient-3',
-    visitType: 'Lab Review',
-    status: 'confirmed',
-    duration: 30,
-    notes: 'Blood work results discussion'
-  },
-  {
-    id: '4',
-    time: '11:00',
-    patientName: 'David Wilson',
-    patientId: 'patient-4',
-    visitType: 'Check-up',
-    status: 'completed',
-    duration: 30,
-    notes: 'Annual physical exam'
-  },
-  {
-    id: '5',
-    time: '14:00',
-    patientName: 'Lisa Brown',
-    patientId: 'patient-5',
-    visitType: 'Follow-up',
-    status: 'pending',
-    duration: 30,
-    notes: 'Medication adjustment'
-  },
-  {
-    id: '6',
-    time: '14:30',
-    patientName: 'Robert Davis',
-    patientId: 'patient-6',
-    visitType: 'Lab Review',
-    status: 'confirmed',
-    duration: 45,
-    notes: 'Lab results and treatment plan'
-  },
-  {
-    id: '7',
-    time: '15:30',
-    patientName: 'Amanda Thompson',
-    patientId: 'patient-7',
-    visitType: 'Check-up',
-    status: 'pending',
-    duration: 30,
-    notes: 'Routine wellness visit'
-  }
-];
-
 export function AppointmentsScreen({ onPatientClick }: AppointmentsScreenProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [appointments, setAppointments] = useState<AppointmentWithPatient[]>([]);
+  const [appointmentSummary, setAppointmentSummary] = useState<AppointmentSummary>({
+    total: 0,
+    pending: 0,
+    confirmed: 0,
+    completed: 0,
+    cancelled: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMorePages, setHasMorePages] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
   const [rescheduleModal, setRescheduleModal] = useState<{
     isOpen: boolean;
-    appointment?: Appointment;
+    appointment?: AppointmentWithPatient;
   }>({ isOpen: false });
 
-  const getStatusColor = (status: AppointmentStatus) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-warning/10 text-warning border-warning/20';
-      case 'confirmed':
-        return 'bg-success/10 text-success border-success/20';
-      case 'completed':
-        return 'bg-blue-50 text-blue-600 border-blue-200';
-      default:
-        return 'bg-canvas text-subtext border-border';
+  // Refs for intersection observer
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Load appointments from API (initial load or refresh)
+  const loadAppointments = useCallback(async (reset = true) => {
+    try {
+      if (reset) {
+        setIsLoading(true);
+        setCurrentPage(1);
+        setAppointments([]);
+      } else {
+        setIsLoadingMore(true);
+      }
+      setError(null);
+      
+      const response = await appointmentService.getAppointments({
+        view: viewMode,
+        date: selectedDate,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        sort: 'start_time',
+        order: 'asc',
+        page: reset ? 1 : currentPage + 1,
+        per_page: 10
+      });
+      
+      if (reset) {
+        setAppointments(response.appointments);
+      } else {
+        setAppointments(prev => [...prev, ...response.appointments]);
+      }
+      
+      setAppointmentSummary(response.summary);
+      setCurrentPage(response.meta.page);
+      setTotalPages(response.meta.total_pages);
+      setHasMorePages(response.meta.page < response.meta.total_pages);
+    } catch (err) {
+      console.error('Failed to load appointments:', err);
+      setError('Failed to load appointments. Please try again.');
+      toast.error('Failed to load appointments');
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
     }
-  };
+  }, [viewMode, selectedDate, statusFilter, currentPage]);
 
-  const getStatusIcon = (status: AppointmentStatus) => {
-    switch (status) {
-      case 'pending':
-        return <AlertCircle className="w-3 h-3" />;
-      case 'confirmed':
-        return <CheckCircle className="w-3 h-3" />;
-      case 'completed':
-        return <Clock3 className="w-3 h-3" />;
-      default:
-        return null;
+  // Load more appointments (pagination)
+  const loadMoreAppointments = useCallback(async () => {
+    if (!isLoadingMore && hasMorePages) {
+      await loadAppointments(false);
     }
-  };
+  }, [loadAppointments, isLoadingMore, hasMorePages]);
 
-  const getVisitTypeColor = (visitType: string) => {
-    switch (visitType) {
-      case 'Check-up':
-        return 'bg-primary/10 text-primary border-primary/20';
-      case 'Follow-up':
-        return 'bg-blue-50 text-blue-600 border-blue-200';
-      case 'Lab Review':
-        return 'bg-purple-50 text-purple-600 border-purple-200';
-      default:
-        return 'bg-canvas text-subtext border-border';
-    }
-  };
+  // Load appointments when component mounts or filters change
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
 
-  const handleConfirm = (appointmentId: string) => {
-    console.log('Confirming appointment:', appointmentId);
-    // In a real app, this would update the appointment status via API
-  };
+  // Intersection Observer for lazy loading
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
 
-  const handleReschedule = (appointment: Appointment) => {
-    setRescheduleModal({ isOpen: true, appointment });
-  };
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting && hasMorePages && !isLoadingMore) {
+          loadMoreAppointments();
+        }
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '100px'
+      }
+    );
 
-  const handleComplete = (appointmentId: string) => {
-    console.log('Completing appointment:', appointmentId);
-    // In a real app, this would update the appointment status via API
-  };
+    observerRef.current.observe(loadMoreRef.current);
 
-  const handleOpenPatient = (patientId: string, openNotes = false) => {
-    console.log('Opening patient:', patientId, openNotes ? 'with notes tab' : '');
-    if (onPatientClick) {
-      onPatientClick(patientId);
-    }
-  };
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [loadMoreAppointments, hasMorePages, isLoadingMore]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -181,185 +135,274 @@ export function AppointmentsScreen({ onPatientClick }: AppointmentsScreenProps) 
     setSelectedDate(new Date().toISOString().split('T')[0]);
   };
 
+  const handleConfirm = async (appointmentId: string) => {
+    try {
+      await appointmentService.updateAppointment(appointmentId, { status: 'confirmed' });
+      toast.success('Appointment confirmed');
+      loadAppointments(true); // Refresh the entire list
+    } catch (error) {
+      console.error('Failed to confirm appointment:', error);
+      toast.error('Failed to confirm appointment');
+    }
+  };
+
+  const handleComplete = async (appointmentId: string) => {
+    try {
+      await appointmentService.updateAppointment(appointmentId, { status: 'completed' });
+      toast.success('Appointment completed');
+      loadAppointments(true); // Refresh the entire list
+    } catch (error) {
+      console.error('Failed to complete appointment:', error);
+      toast.error('Failed to complete appointment');
+    }
+  };
+
+  const handleReschedule = (appointmentId: string) => {
+    const appointment = appointments.find(a => a.id === appointmentId);
+    if (appointment) {
+      setRescheduleModal({ isOpen: true, appointment });
+    }
+  };
+
+  const handlePatientClick = (patientId: string) => {
+    console.log('Opening patient:', patientId);
+    if (onPatientClick) {
+      onPatientClick(patientId);
+    }
+  };
+
+  const handleNotesClick = (patientId: string) => {
+    console.log('Opening patient notes:', patientId);
+    if (onPatientClick) {
+      onPatientClick(patientId);
+    }
+  };
+
+  // Helper function to map API data to component props
+  const mapAppointmentToRow = (appointment: AppointmentWithPatient) => ({
+    id: appointment.id,
+    time: appointment.start_time,
+    patientName: appointment.patient.full_name,
+    patientId: appointment.patient_id,
+    mrn: appointment.patient.mrn,
+    visitType: appointment.appointment_type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) as 'Check-up' | 'Follow-up' | 'Lab Review' | 'Consultation' | 'Procedure',
+    status: appointment.status as 'pending' | 'confirmed' | 'completed' | 'canceled' | 'no_show',
+    duration: appointment.duration_minutes,
+    notes: appointment.notes,
+    isTelehealth: false, // This would need to be added to the API schema
+    hasAttachment: false, // This would need to be added to the API schema
+    isPriority: false // This would need to be added to the API schema
+  });
+
   return (
-    <div className="flex-1 p-8 bg-canvas">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-text text-2xl mb-2">Appointments</h1>
-          <p className="text-subtext">Manage your scheduled patient visits</p>
-        </div>
+    <div className="flex-1 bg-canvas flex flex-col h-screen">
+      {/* Container with max-width and gutters */}
+      <div className="max-w-[1200px] mx-auto w-full px-8 flex flex-col h-full">
+        
+        {/* Sticky Header Block */}
+        <div className="sticky top-0 bg-canvas z-30 border-b border-border">
+          <div className="py-8">
+            {/* Main Header */}
+            <div className="mb-6">
+              <h1 className="text-text mb-2 text-2xl font-semibold">Appointments</h1>
+              <p className="text-subtext">Manage your scheduled patient visits</p>
+            </div>
 
-        {/* Top Controls */}
-        <div className="flex items-center justify-between mb-8">
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 bg-surface border border-border rounded-2xl p-1">
-            {(['day', 'week', 'month'] as ViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-colors ${
-                  viewMode === mode
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-subtext hover:text-text hover:bg-accent'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
+            {/* Controls Row */}
+            <div className="flex items-center justify-between">
+              {/* Left - View Mode Toggle */}
+              <div className="flex items-center gap-1 bg-surface border border-border rounded-2xl p-1">
+                {(['day', 'week', 'month'] as ViewMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                      viewMode === mode
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-subtext hover:text-text hover:bg-accent'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+
+              {/* Right - Date Controls & Filters */}
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={goToToday}
+                  className="border-border bg-surface hover:bg-accent rounded-2xl text-subtext hover:text-text focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                >
+                  Today
+                </Button>
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-surface border-border rounded-2xl w-auto focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-32 bg-surface border-border rounded-2xl focus:ring-2 focus:ring-primary focus:ring-offset-2">
+                    <SelectValue placeholder="All" />
+                    <ChevronDown className="w-4 h-4" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-surface border-border rounded-xl">
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
-
-          {/* Date Controls */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={goToToday}
-              className="border-border bg-surface hover:bg-accent rounded-2xl text-subtext hover:text-text"
-            >
-              Today
-            </Button>
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-surface border-border rounded-2xl w-auto"
-            />
-          </div>
         </div>
 
-        {/* Date Display */}
-        <div className="mb-6">
-          <h2 className="text-text text-xl">{formatDate(selectedDate)}</h2>
-          <p className="text-subtext">{mockAppointments.length} appointments scheduled</p>
-        </div>
-
-        {/* Appointments List */}
-        <div className="space-y-4">
-          {mockAppointments.map((appointment) => (
-            <Card key={appointment.id} className="bg-surface border border-border rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  {/* Left Section - Time & Patient Info */}
-                  <div className="flex items-center gap-6">
-                    {/* Time */}
-                    <div className="flex items-center gap-2 min-w-20">
-                      <Clock className="w-4 h-4 text-primary" />
-                      <span className="text-text font-medium">{appointment.time}</span>
-                    </div>
-
-                    {/* Patient Info */}
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-text font-medium">{appointment.patientName}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge 
-                            variant="secondary"
-                            className={`rounded-full px-2 py-1 text-xs ${getVisitTypeColor(appointment.visitType)}`}
-                          >
-                            {appointment.visitType}
-                          </Badge>
-                          <span className="text-subtext text-sm">•</span>
-                          <span className="text-subtext text-sm">{appointment.duration}min</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Section - Status & Actions */}
-                  <div className="flex items-center gap-4">
-                    {/* Status */}
-                    <Badge 
-                      variant="secondary"
-                      className={`rounded-full px-3 py-1 text-xs capitalize flex items-center gap-1 ${getStatusColor(appointment.status)}`}
-                    >
-                      {getStatusIcon(appointment.status)}
-                      {appointment.status}
-                    </Badge>
-
-                    {/* Quick Actions */}
-                    <div className="flex items-center gap-2">
-                      {appointment.status === 'pending' && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleConfirm(appointment.id)}
-                          className="bg-primary hover:bg-primary-hover text-primary-foreground rounded-xl px-3 py-1 text-xs"
-                        >
-                          Confirm
-                        </Button>
-                      )}
-                      
-                      {appointment.status !== 'completed' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleComplete(appointment.id)}
-                          className="border-border bg-surface hover:bg-accent rounded-xl text-subtext hover:text-text px-3 py-1 text-xs"
-                        >
-                          Complete
-                        </Button>
-                      )}
-
-                      {/* More Actions Dropdown */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-8 h-8 p-0 rounded-xl hover:bg-accent"
-                          >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-surface border border-border rounded-xl shadow-lg w-48">
-                          <DropdownMenuItem 
-                            onClick={() => handleReschedule(appointment)}
-                            className="hover:bg-accent rounded-lg cursor-pointer"
-                          >
-                            <Calendar className="w-4 h-4 mr-2" />
-                            Reschedule
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleOpenPatient(appointment.patientId)}
-                            className="hover:bg-accent rounded-lg cursor-pointer"
-                          >
-                            <User className="w-4 h-4 mr-2" />
-                            Open Patient
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleOpenPatient(appointment.patientId, true)}
-                            className="hover:bg-accent rounded-lg cursor-pointer"
-                          >
-                            <Clock3 className="w-4 h-4 mr-2" />
-                            Open Notes Tab
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Notes */}
-                {appointment.notes && (
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <p className="text-subtext text-sm">{appointment.notes}</p>
+        {/* DayHeader - Solid Background */}
+        <div className="sticky top-[180px] bg-canvas z-20 border-b border-border px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-text text-xl font-semibold">{formatDate(selectedDate)}</h2>
+              <p className="text-subtext text-sm mt-1">
+                {appointmentSummary.total} appointments scheduled
+                {appointments.length > 0 && (
+                  <span className="ml-2 text-xs">
+                    (Showing {appointments.length} of {appointmentSummary.total})
+                  </span>
+                )}
+              </p>
+            </div>
+            {appointments.length > 0 && (
+              <div className="text-right">
+                <p className="text-subtext text-xs">
+                  Page {currentPage} of {totalPages}
+                </p>
+                {isLoadingMore && (
+                  <div className="flex items-center mt-1">
+                    <Loader2 className="w-3 h-3 animate-spin text-primary mr-1" />
+                    <span className="text-subtext text-xs">Loading...</span>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Empty State */}
-        {mockAppointments.length === 0 && (
-          <div className="text-center py-12">
-            <Calendar className="w-12 h-12 text-subtext mx-auto mb-4" />
-            <h3 className="text-text mb-2">No appointments scheduled</h3>
-            <p className="text-subtext">No appointments found for {formatDate(selectedDate)}</p>
+        {/* ListScroller - Main Scroll Area */}
+        <div className="flex-1 min-h-0 relative">
+          {/* Top Scroll Shadow */}
+          <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-canvas to-transparent pointer-events-none z-20" />
+          
+          {/* Scrollable Content */}
+          <div className="h-full overflow-y-auto screens-scroll px-6 pt-0">
+            {/* Loading State */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-subtext">Loading appointments...</div>
+              </div>
+            ) : error ? (
+              /* Error State */
+              <div className="text-center py-16">
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Calendar className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-text font-medium mb-2">Error loading appointments</h3>
+                <p className="text-subtext mb-4">{error}</p>
+                <Button 
+                  onClick={loadAppointments}
+                  className="bg-primary hover:bg-primary-hover text-primary-foreground rounded-2xl focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : appointments.length > 0 ? (
+              /* Appointments List */
+              <div className="space-y-0">
+                {appointments.map((appointment, index) => {
+                  const appointmentData = mapAppointmentToRow(appointment);
+                  return (
+                    <AppointmentRow
+                      key={appointment.id}
+                      id={appointmentData.id}
+                      time={appointmentData.time}
+                      patientName={appointmentData.patientName}
+                      patientId={appointmentData.patientId}
+                      mrn={appointmentData.mrn}
+                      visitType={appointmentData.visitType}
+                      status={appointmentData.status}
+                      duration={appointmentData.duration}
+                      notes={appointmentData.notes}
+                      isTelehealth={appointmentData.isTelehealth}
+                      hasAttachment={appointmentData.hasAttachment}
+                      isPriority={appointmentData.isPriority}
+                      isLast={index === appointments.length - 1}
+                      onConfirm={handleConfirm}
+                      onComplete={handleComplete}
+                      onReschedule={handleReschedule}
+                      onPatientClick={handlePatientClick}
+                      onNotesClick={handleNotesClick}
+                    />
+                  );
+                })}
+                
+                {/* Lazy Loading Trigger */}
+                {hasMorePages && (
+                  <div ref={loadMoreRef} className="py-4">
+                    {isLoadingMore ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
+                        <span className="text-subtext">Loading more appointments...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center py-4">
+                        <Button
+                          variant="outline"
+                          onClick={loadMoreAppointments}
+                          className="border-border bg-surface hover:bg-accent rounded-2xl text-subtext hover:text-text"
+                        >
+                          Load More Appointments
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* End of Results */}
+                {!hasMorePages && appointments.length > 0 && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <Calendar className="w-4 h-4 text-primary" />
+                      </div>
+                      <p className="text-subtext text-sm">All appointments loaded</p>
+                      <p className="text-subtext text-xs mt-1">
+                        Showing {appointments.length} of {appointmentSummary.total} appointments
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Empty State */
+              <div className="text-center py-16">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Calendar className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-text font-medium mb-2">No appointments scheduled</h3>
+                <p className="text-subtext mb-4">No appointments found for {formatDate(selectedDate)}</p>
+                <Button 
+                  className="bg-primary hover:bg-primary-hover text-primary-foreground rounded-2xl focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                >
+                  Create appointment
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Bottom Scroll Shadow */}
+          <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-canvas to-transparent pointer-events-none z-20" />
+        </div>
       </div>
 
       {/* Reschedule Modal */}
@@ -367,9 +410,9 @@ export function AppointmentsScreen({ onPatientClick }: AppointmentsScreenProps) 
         isOpen={rescheduleModal.isOpen}
         onClose={() => setRescheduleModal({ isOpen: false })}
         appointment={rescheduleModal.appointment ? {
-          patient: rescheduleModal.appointment.patientName,
-          time: rescheduleModal.appointment.time,
-          type: rescheduleModal.appointment.visitType
+          patient: rescheduleModal.appointment.patient.full_name,
+          time: rescheduleModal.appointment.start_time,
+          type: rescheduleModal.appointment.appointment_type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
         } : undefined}
       />
     </div>

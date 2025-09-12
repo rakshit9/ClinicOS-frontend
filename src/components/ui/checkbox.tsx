@@ -8,8 +8,11 @@ import { cn } from "./utils";
 
 function Checkbox({
   className,
+  indeterminate,
   ...props
-}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+}: React.ComponentProps<typeof CheckboxPrimitive.Root> & {
+  indeterminate?: boolean;
+}) {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
@@ -18,12 +21,17 @@ function Checkbox({
         className,
       )}
       {...props}
+      {...(indeterminate ? { 'data-indeterminate': 'true' } : {})}
     >
       <CheckboxPrimitive.Indicator
         data-slot="checkbox-indicator"
         className="flex items-center justify-center text-current transition-none"
       >
-        <CheckIcon className="size-3.5" />
+        {indeterminate ? (
+          <div className="w-2 h-0.5 bg-current rounded-full" />
+        ) : (
+          <CheckIcon className="size-3.5" />
+        )}
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );

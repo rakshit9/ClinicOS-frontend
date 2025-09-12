@@ -1,20 +1,26 @@
-import React, { useState } from 'react';
-import { PremiumSignIn, type AuthScreen } from './auth/premium-sign-in';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PremiumSignIn } from './auth/premium-sign-in';
 import { PremiumSignUp } from './auth/premium-sign-up';
 import { PremiumForgotPassword, PremiumResetPassword } from './auth/premium-forgot-reset';
 
+export type AuthScreen = 'signin' | 'signup' | 'forgot' | 'reset';
+
 interface PremiumAuthFlowProps {
-  onComplete: () => void;
-  onBack: () => void;
+  onComplete?: () => void;
+  onBack?: () => void;
 }
 
-export type { AuthScreen };
-
 export function PremiumAuthFlow({ onComplete, onBack }: PremiumAuthFlowProps) {
+  const navigate = useNavigate();
   const [currentScreen, setCurrentScreen] = useState<AuthScreen>('signin');
 
   const handleAuthSuccess = () => {
-    onComplete();
+    if (onComplete) {
+      onComplete();
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   const handleNavigate = (screen: AuthScreen) => {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Shield, Check, Zap, Users } from 'lucide-react';
 import { cn } from '../ui/utils';
 
@@ -36,10 +35,7 @@ export function AuthLayout({ children, variant = 'signin' }: AuthLayoutProps) {
       {/* Mobile Header */}
       <div className="md:hidden h-80 relative overflow-hidden">
         <div 
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(135deg, var(--brand-warm) 0%, var(--primary) 100%)`
-          }}
+          className="absolute inset-0 bg-aurora-hero"
         />
         {/* Subtle texture overlay */}
         <div 
@@ -73,10 +69,7 @@ export function AuthLayout({ children, variant = 'signin' }: AuthLayoutProps) {
       {/* Desktop Left Panel */}
       <div className="hidden md:flex md:w-[48%] relative overflow-hidden">
         <div 
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(135deg, var(--brand-warm) 0%, var(--primary) 100%)`
-          }}
+          className="absolute inset-0 bg-aurora-hero"
         />
         {/* Subtle texture overlay */}
         <div 

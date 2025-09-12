@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface StatusBadgeProps {
   variant: 'low' | 'medium' | 'high' | 'pending' | 'confirmed' | 'completed';
   children: React.ReactNode;

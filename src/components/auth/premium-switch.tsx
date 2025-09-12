@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { cn } from '../ui/utils';
 
 interface PremiumSwitchProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> {

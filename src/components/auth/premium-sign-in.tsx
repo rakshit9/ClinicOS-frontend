@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Mail, Lock } from 'lucide-react';
 import { AuroraLayout } from './aurora-layout';
 import { TextField } from './text-field';
@@ -7,9 +7,10 @@ import { PremiumSwitch } from './premium-switch';
 import { PremiumDivider } from './premium-divider';
 import { GoogleIcon } from './google-icon';
 import { PremiumInfoCapsule } from './premium-info-capsule';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { useAuth } from '../../contexts/AuthContext';
 
-export type AuthScreen = 'signin' | 'signup' | 'forgot' | 'reset';
+import { AuthScreen } from '../premium-auth-flow';
 
 interface PremiumSignInProps {
   onSuccess: () => void;
@@ -17,6 +18,7 @@ interface PremiumSignInProps {
 }
 
 export function PremiumSignIn({ onSuccess, onNavigate }: PremiumSignInProps) {
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -55,12 +57,20 @@ export function PremiumSignIn({ onSuccess, onNavigate }: PremiumSignInProps) {
 
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    setIsLoading(false);
-    toast.success('Welcome back!');
-    onSuccess();
+    try {
+      await login({
+        email: formData.email,
+        password: formData.password
+      });
+      
+      toast.success('Welcome back!');
+      onSuccess();
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      toast.error(error.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignIn = () => {

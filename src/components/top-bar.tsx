@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
-import { Search, Bell, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Bell, ChevronDown, LogOut } from 'lucide-react';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { QuickFindOverlay } from './quick-find-overlay';
+import { User } from '../services/authService';
 
 interface TopBarProps {
   onPatientSelect?: (patientId: string) => void;
+  user?: User | null;
+  onLogout?: () => void;
 }
 
-export function TopBar({ onPatientSelect }: TopBarProps) {
+export function TopBar({ onPatientSelect, user, onLogout }: TopBarProps) {
   const [showQuickFind, setShowQuickFind] = useState(false);
   
   const today = new Date().toLocaleDateString('en-US', { 
@@ -70,11 +73,13 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
             <button className="flex items-center gap-3 p-2 rounded-2xl hover:bg-accent transition-colors">
               <Avatar className="w-8 h-8">
                 <AvatarImage src="/api/placeholder/32/32" />
-                <AvatarFallback>DR</AvatarFallback>
+                <AvatarFallback>
+                  {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'DR'}
+                </AvatarFallback>
               </Avatar>
               <div className="text-left">
-                <div className="text-text">Dr. Sarah Chen</div>
-                <div className="text-subtext text-xs">Cardiologist</div>
+                <div className="text-text">{user?.name || 'Dr. User'}</div>
+                <div className="text-subtext text-xs">{user?.speciality || 'Doctor'}</div>
               </div>
               <ChevronDown className="w-4 h-4 text-subtext" />
             </button>
@@ -83,7 +88,13 @@ export function TopBar({ onPatientSelect }: TopBarProps) {
             <DropdownMenuItem>Profile</DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-danger">Logout</DropdownMenuItem>
+            <DropdownMenuItem 
+              className="text-danger cursor-pointer" 
+              onClick={onLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

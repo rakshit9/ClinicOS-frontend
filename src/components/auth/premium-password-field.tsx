@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from 'react';
+import { useState, forwardRef } from 'react';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 import { cn } from '../ui/utils';
 
